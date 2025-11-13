@@ -129,6 +129,27 @@ wss.on('connection', (ws, request) => {
   
   session.lastActivity = new Date();
   
+  // Send initial connection confirmation
+  ws.send(JSON.stringify({
+    type: 'connected',
+    role,
+    sessionId,
+    timestamp: new Date().toISOString()
+  }));
+  
+  // Ping/Pong to keep connection alive
+  const pingInterval = setInterval(() => {
+    if (ws.readyState === 1) {
+      ws.ping();
+    } else {
+      clearInterval(pingInterval);
+    }
+  }, 30000); // Every 30 seconds
+  
+  ws.on('pong', () => {
+    session.lastActivity = new Date();
+  });
+  
   // Handle incoming messages
   ws.on('message', (data) => {
     try {
@@ -141,6 +162,7 @@ wss.on('connection', (ws, request) => {
   
   // Handle disconnection
   ws.on('close', () => {
+    clearInterval(pingInterval);
     console.log(`🔌 ${role} disconnected from session ${sessionId}`);
     
     if (role === 'host') {
